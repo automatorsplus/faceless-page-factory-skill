@@ -114,7 +114,8 @@ def main() -> int:
     (out_dir / "research.md").write_text("\n".join(lines))
     print()
     for i, r in enumerate(top[:10], 1):
-        print(f"  {i:>2}. {r['views']:>10,}  {r['channel'][:20]:<20}  {r['title'][:52]}")
+        print(f"  {i:>2}. {r['views']:>10,}  {r['duration']:>3}s  {r['channel'][:20]:<20}  {r['title'][:48]}")
+        print(f"      {r['url']}")          # the link is the point: watch it before you pick it
     extra = len(top) - 10
     print(f"\n  {len(top)} rows in research.md" + (f" ({extra} more below these)" if extra > 0 else ""))
     return 0

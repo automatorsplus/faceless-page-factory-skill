@@ -37,8 +37,15 @@ python3 scripts/research.py "satisfying physics" --also "oddly satisfying" [--pa
 ```
 YouTube results sorted by views, deduped, **anything under 3 minutes** (`--any-length` keeps the rest), top
 twenty with links into `research.md`. **A thin week widens to the month on its own and says so**, and the file
-records which window it used. Then
-write five clip ideas in chat, each naming the row it is modelled on, and paste them into the file's last section.
+records which window it used. The top ten print with their URLs so the member can open a few and hear them
+before choosing.
+
+🔴 **Every row you put in chat carries its link.** The member picks a row to replicate, so they have to be able
+to watch it first, not take your word for what is in it. A table of views and titles with no links is the one
+thing that makes this step useless.
+
+Then write five clip ideas in chat, each naming the row it is modelled on and carrying that row's link, and
+paste them into the file's last section.
 This is the step most people skip. Do it before the page exists so the niche is chosen on numbers.
 
 ## Page
