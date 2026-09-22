@@ -109,6 +109,6 @@ if [ "$FAILED" = "0" ]; then
   echo "PASS. Next: /factory research \"<your niche>\", then /factory page."
   exit 0
 else
-  echo "Not ready yet. Fix the FIX lines above and run: bash scripts/setup.sh"
+  echo "Not ready yet. Fix the FIX lines above and run the setup again."
   exit 1
 fi

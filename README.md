@@ -67,15 +67,23 @@ accounts with their ids. When it prints PASS you are ready. Claude runs this for
 
 ## Install the Skill
 
-### Option 1: URL install
+### Option 1: into a project you already have
 
+```bash
+git clone https://github.com/automatorsplus/faceless-page-factory-skill
+cp -r faceless-page-factory-skill/.claude/skills/faceless-page-factory /path/to/your-project/.claude/skills/
 ```
-claude skill add --url https://raw.githubusercontent.com/automatorsplus/faceless-page-factory-skill/main/.claude/skills/faceless-page-factory/SKILL.md
+
+Restart Claude Code in that project and the skill is live.
+
+### Option 2: use the clone as the project
+
+```bash
+git clone https://github.com/automatorsplus/faceless-page-factory-skill
+cd faceless-page-factory-skill
 ```
 
-### Option 2: Manual copy
-
-Copy `.claude/skills/faceless-page-factory/` into your project's `.claude/skills/` folder.
+Open that folder in Claude Code. Everything, including the pages you make, lives here.
 
 ## Try It
 
