@@ -85,8 +85,9 @@ def build(page: pathlib.Path, slug: str, prompts: list, a) -> None:
         raw = mute
     mm = loudness.fix(str(raw), str(d / "clip.mp4"))
     print("  loudness:", loudness.report(mm))
-    if not loudness.in_spec(mm) and not silent:
-        sys.exit("  off spec after the fix. Not queued. Look at the audio.")
+    # The generation is already paid for, so an off-spec clip is still written and queued, never dropped.
+    # It waits as needs-audio and schedule.py books it only when it is named with --clip.
+    off_spec = not loudness.in_spec(mm) and not silent
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", "1", "-i", str(d / "clip.mp4"),
                     "-frames:v", "1", "-q:v", "2", str(d / "poster.jpg")], check=True)
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
@@ -94,13 +95,19 @@ def build(page: pathlib.Path, slug: str, prompts: list, a) -> None:
     meta = {"slug": slug, "model": MODEL, "prompts": prompts, "duration_s": round(dur, 2), "aspect": a.aspect,
             "resolution": a.resolution, "generations": records, "price_usd_each": a.price_usd,
             "loudness": mm, "silent": silent, "made": datetime.datetime.now().isoformat(timespec="seconds")}
+    meta["loudness_ok"] = not off_spec
     (d / "meta.json").write_text(json.dumps(meta, indent=2))
     if not (d / "caption.txt").is_file():
         (d / "caption.txt").write_text("")
     q = load_queue(page)
-    q.append({"slug": slug, "state": "rendered", "duration_s": round(dur, 2), "made": meta["made"], "blotato": {}})
+    state = "needs-audio" if off_spec else "rendered"
+    q.append({"slug": slug, "state": state, "duration_s": round(dur, 2), "made": meta["made"], "blotato": {}})
     save_queue(page, q)
-    print(f"  clips/{slug}/clip.mp4  ({dur:.1f}s)  queued")
+    if off_spec:
+        print(f"  clips/{slug}/clip.mp4  ({dur:.1f}s)  queued as needs-audio: loudness is off spec.\n"
+              f"  Listen to it. To post it anyway, name it: schedule.py --clip {slug}")
+    else:
+        print(f"  clips/{slug}/clip.mp4  ({dur:.1f}s)  queued")
 
 
 def main() -> int:

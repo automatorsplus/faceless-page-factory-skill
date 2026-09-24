@@ -66,7 +66,9 @@ art later, `--check-only` to test a handle.
 python3 scripts/clip.py --page <folder> --prompt "..." --slug <name> [--duration 10] [--price-usd 0.00]
 ```
 Seedance 2.5 text to video through the API, 4 to 30 seconds in one call, 9:16, 720p, audio on. Then two-pass
-loudness to -13.8 LUFS (a stop if it cannot get there), a poster frame, `meta.json`, a row in `queue.json`.
+loudness to -13.8 LUFS, a poster frame, `meta.json`, a row in `queue.json`. A clip still off spec after the fix is
+kept and queued as `needs-audio`, never dropped, because the generation is already paid for. Listen to it; sparse
+ASMR is the usual cause.
 **A file of prompts does one of two things, and the flag decides which:**
 
 ```
@@ -95,7 +97,14 @@ python3 scripts/schedule.py --page <folder> --yes    book it
 Every rendered clip goes into the next free slot per platform from `page.md`, local time converted on write. The
 plan prints first; nothing is uploaded or booked without `--yes`. Upload is Blotato's presigned upload, the post is
 `POST /v2/posts`, one per platform, `isAiGenerated` and `containsSyntheticMedia` set true because the clips are.
-A clip already scheduled is refused.
+A clip already scheduled is refused. A `needs-audio` clip is only booked when it is named with `--clip <slug>`.
+
+```
+python3 scripts/schedule.py --page <folder> --clip <slug> --privacy unlisted --in 10 --yes
+```
+`--privacy public | unlisted | private` (default public). TikTok has no unlisted, so anything but public goes to
+TikTok as SELF_ONLY and a test stays quiet on both platforms. `--in <minutes>` posts that far from now instead of
+into the next slots, which is how you do a first test post.
 
 ## Page folder
 
@@ -105,7 +114,7 @@ A clip already scheduled is refused.
   research.md      the last research pull, dated
   assets/          logo.png, banner.png
   clips/<slug>/    clip.mp4, poster.jpg, caption.txt, meta.json (raw.mp4 and shots kept)
-  queue.json       every clip: state (rendered | scheduled), Blotato ids and times
+  queue.json       every clip: state (rendered | needs-audio | scheduled), Blotato ids and times
 ```
 
 ## Platform rules

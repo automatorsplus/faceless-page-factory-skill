@@ -7,6 +7,11 @@ POST /v2/posts, the bodies the same shape a live faceless page has been booked w
     python3 schedule.py --page ./octofacts --yes           book them
     python3 schedule.py --page ./octofacts --clip a --clip b --yes
     python3 schedule.py --page ./octofacts --from 2026-09-25      first slot on or after this date
+    python3 schedule.py --page ./octofacts --clip a --privacy unlisted --in 10 --yes    a test post, ten minutes out
+
+--privacy public (default), unlisted or private. TikTok has no unlisted, so anything but public goes to TikTok as
+SELF_ONLY: a quiet test stays quiet on both platforms. A clip queued as needs-audio (loudness off spec) is only
+booked when it is named with --clip.
 """
 from __future__ import annotations
 import argparse, datetime, json, os, pathlib, sys, urllib.error, urllib.request, zoneinfo
@@ -76,21 +81,40 @@ def main() -> int:
     ap.add_argument("--page", default=None)
     ap.add_argument("--clip", action="append", default=[], help="slug, repeatable; default every rendered clip")
     ap.add_argument("--from", dest="from_date", default=None, help="YYYY-MM-DD, first slot on or after")
+    ap.add_argument("--privacy", default="public", choices=["public", "unlisted", "private"],
+                    help="YouTube privacy. Anything but public posts to TikTok as SELF_ONLY")
+    ap.add_argument("--in", dest="in_minutes", type=int, default=None,
+                    help="post N minutes from now instead of the next slots; several clips go a minute apart")
     ap.add_argument("--yes", action="store_true")
     a = ap.parse_args()
+    if a.in_minutes is not None and a.in_minutes < 2:
+        sys.exit("--in needs at least 2 minutes, so Blotato has time to take the upload")
     load_env()
     page = find_page(a.page)
     pg = parse_page(page)
     tz = zoneinfo.ZoneInfo(pg.get("timezone", "Europe/London"))
     acc = pg.get("accounts") or {}
     q = load_queue(page)
-    todo = [r for r in q if r["state"] == "rendered" and (not a.clip or r["slug"] in a.clip)]
+    # rendered clips go by default; a needs-audio clip only when it is named, which is the choice to post it anyway
+    todo = [r for r in q if (r["state"] == "rendered" and (not a.clip or r["slug"] in a.clip))
+            or (r["state"] == "needs-audio" and r["slug"] in a.clip)]
     if not todo:
-        sys.exit("nothing rendered to schedule. Run /factory clip first, or the slugs given are already scheduled.")
+        held = [r["slug"] for r in q if r["state"] == "needs-audio"]
+        hint = f" Waiting as needs-audio (name one with --clip to post it): {', '.join(held)}." if held else ""
+        sys.exit("nothing rendered to schedule. Run /factory clip first, or the slugs given are already scheduled." + hint)
+    for r in todo:
+        if r["state"] == "needs-audio":
+            print(f"  {r['slug']}: loudness is off spec, booking it because it was named")
+    tt_target = dict(TT_TARGET, privacyLevel="PUBLIC_TO_EVERYONE" if a.privacy == "public" else "SELF_ONLY")
     plan = []
     for platform in ("tiktok", "youtube"):
         if not acc.get(platform):
             print(f"  {platform}: no account id in page.md, skipped")
+            continue
+        if a.in_minutes is not None:
+            start = datetime.datetime.now(tz).replace(second=0, microsecond=0) + datetime.timedelta(minutes=a.in_minutes)
+            for i, r in enumerate(todo):
+                plan.append((platform, r, start + datetime.timedelta(minutes=i)))
             continue
         times = times_for(pg, platform)
         if not times:
@@ -103,7 +127,7 @@ def main() -> int:
             last = max(last, datetime.datetime(y, mo, d, 0, 0, tzinfo=tz) - datetime.timedelta(minutes=1))
         for r, t in zip(todo, next_slots(times, last, len(todo), tz)):
             plan.append((platform, r, t))
-    print(f"Plan for {pg.get('name', page.name)}:")
+    print(f"Plan for {pg.get('name', page.name)}, {a.privacy}:")
     for platform, r, t in plan:
         print(f"  {t.strftime('%a %d %b %H:%M')}  {platform:<8} {r['slug']}")
     if not a.yes:
@@ -120,11 +144,11 @@ def main() -> int:
             urls[r["slug"]] = upload(d / "clip.mp4", f"{r['slug']}-{t.strftime('%Y%m%d%H%M')}.mp4")
         iso = t.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:00Z")
         if platform == "tiktok":
-            body = {"post": {"accountId": acc["tiktok"], "target": TT_TARGET,
+            body = {"post": {"accountId": acc["tiktok"], "target": tt_target,
                              "content": {"text": cap, "mediaUrls": [urls[r["slug"]]], "platform": "tiktok"}}, "scheduledTime": iso}
         else:
             body = {"post": {"accountId": acc["youtube"],
-                             "target": {"targetType": "youtube", "title": title[:100], "privacyStatus": "public",
+                             "target": {"targetType": "youtube", "title": title[:100], "privacyStatus": a.privacy,
                                         "isMadeForKids": False, "containsSyntheticMedia": True, "shouldNotifySubscribers": False},
                              "content": {"text": "", "mediaUrls": [urls[r["slug"]]], "platform": "youtube"}}, "scheduledTime": iso}
         res = bl("POST", "/v2/posts", body)
